@@ -6,8 +6,15 @@ Created on date: 11 July 2022
 Purpose: to write the outbound json file as the same as the incoming json file, but with 3 new fields of tokens for
 each technique used.
 
+13 July 2022
+Project purpose: To effectively implement SoftNER to determine relevant NE's in the error-*.json files and compare/vectorize
+the error NE's to the StackOverFlow database that the SoftNER authors compiled. Within these comparisons/vectorizations we can
+determine, possibly through vector similarity or sentiment score (with altered labels), a probability of correlation and
+recommend these stackoverflow pages when the NE's appear in a produced error message.
+
 """
 
+from tqdm import tqdm
 import argparse
 import time
 import spacy
@@ -33,19 +40,16 @@ def make_tokens(word_list):
             if re.match(r'[a-zA-Z]+$', token.lemma_):
                 spacy_tokens.append(token.text.lower())
     spacy_tokens = ' '.join(spacy_tokens)
-    print(f"Spacy tokens complete.")
 
     # bagOwords section
     model = feature_extraction.BagOfWords(lowercase=True, strip_accents=True)
     temporary_dict = model.transform_one(word_list)
     bagOwords = list(temporary_dict.keys())
     bagOwords = ' '.join(bagOwords)
-    print(f"BagOWords tokens complete.")
 
     # nltk section
     nltk_tokens = nltk.word_tokenize(word_list)
     nltk_tokens = ' '.join(nltk_tokens)
-    print(f"NLTK tokens complete.")
 
     return spacy_tokens, bagOwords, nltk_tokens
 
@@ -58,17 +62,15 @@ def words_from_json(incoming_json, meta_dictionary):
     :return: a word list comprising all text in the three mentioned keys
     """
     final_transformed = []
-    for small_dict in incoming_json:
-        print(f"=======Current id is: {small_dict['id']}=========")
+    for small_dict in tqdm(incoming_json, desc="Num Dictionaries: ", position=2):
+        # print(f"=======Current id is: {small_dict['id']}=========")
         word_list = small_dict['text']
-        word_list += small_dict['pre_context']
-        word_list += small_dict['post_context']
         small_dict["spacy"] = make_tokens(word_list)[0]
         small_dict["bagOwords"] = make_tokens(word_list)[1]
         small_dict["nltk"] = make_tokens(word_list)[2]
         for key in meta_dictionary.keys():
             if key == small_dict['id']:
-                small_dict["word2vec"] = ' '.join(list(meta_dictionary[key].keys()))
+                small_dict["Doc2Vec"] = ' '.join(list(meta_dictionary[key].keys()))
         final_transformed.append(small_dict)
 
     return final_transformed
@@ -76,7 +78,8 @@ def words_from_json(incoming_json, meta_dictionary):
 
 # main function
 def main():
-    starttime = time.time()
+    # starttime = time.time()
+
     # Argparser, nargs only use if passing in a list for the argument type
     parser = argparse.ArgumentParser()
     parser.add_argument('User_name', type=str, help='Github repository user_name')
@@ -91,13 +94,13 @@ def main():
     meta_json = request_url_data(meta_urls[0])
     meta_dictionary = meta_file_splitting(meta_json)
 
-    for url in raw_urls:
+    for url in tqdm(raw_urls, desc="Num json files: "):
         requested_json = request_url_data(url)
-        outbound_json = words_from_json(requested_json[0:500], meta_dictionary)
-        write_json(outbound_json, f"_errors_{str(index)}_tokens.json")
+        outbound_json = words_from_json(requested_json, meta_dictionary)
+        write_json(outbound_json, f"_errors_{str(index)}_text_tokens.json")
         index += 1
-        print(f"successfully extended {index} urls.")
-        print(f"Duration for {index} urls {(time.time() - starttime) / 60} minutes ")
+        # print(f"successfully extended {index} urls.")
+        # print(f"Duration for {index} urls {round((time.time() - starttime) / 60, 3)} minutes ")
 
 
 if __name__ == '__main__':
