@@ -22,20 +22,7 @@ import spacy
 import nltk
 import re
 from river import feature_extraction
-from _utilities import split_into_batches, git_raw_urls, request_url_data, write_json, meta_file_splitting, keras_tokenizer
-
-
-# from keras.preprocessing.text import text_to_word_sequence
-
-
-# function to test regrex
-def regex_tester(word_list):
-    # () is an explicit capture of what's inside the parenthesis
-    # [] is a character class that will match anything in the ranges inserted
-    for word in word_list:
-        if re.search(r'[^./][\w+][/\w+]:', word):
-            print(word)
-    return -1
+from _utilities import git_raw_urls, request_url_data, write_json, meta_file_splitting, keras_sequencer
 
 
 # function to perform all the tokenization and addition to the dictionary
@@ -55,7 +42,7 @@ def make_tokens(word_list):
             # print(word)
     parsed_batch = nlp(word_list)
     for token in parsed_batch:
-        if re.match(r'[a-zA-Z]+$', token.lemma_):
+        if re.match(r'[\w+]+$', token.lemma_): # [a-zA-Z]+$
             spacy_tokens.append(token.text.lower())
     spacy_tokens = ' '.join(list(set(spacy_tokens)))
 
@@ -74,10 +61,12 @@ def make_tokens(word_list):
     nltk_tokens = ' '.join(nltk_tokens)
 
     # keras section
-    keras_tokens = keras_tokenizer(word_list)
+    keras_tokens = keras_sequencer(word_list)
     for word in word_list.split(' '):
         if re.search(r'[^./][\w+][/\w+]:', word) and len(word) > 6:
             keras_tokens.append(word)
+    keras_tokens = list(set(keras_tokens))
+    keras_tokens = ' '.join(keras_tokens)
 
     return spacy_tokens, bagOwords, nltk_tokens, keras_tokens
 
@@ -128,7 +117,7 @@ def main():
     meta_dictionary = meta_file_splitting(meta_json)
 
     # for url in tqdm(raw_urls, desc="Num json files", position=0, colour="blue", unit=" Json Files"):
-    for url in raw_urls:
+    for url in raw_urls[0:2]:
         requested_json, requested_json_text = request_url_data(url)
         outbound_json_text = words_from_json(requested_json_text, meta_dictionary)
         for _dict_ in requested_json:
@@ -145,10 +134,6 @@ def main():
 
         write_json(requested_json, f"_errors_{index}_tokens.json")
         index += 1
-    # text = "/usr/sbin/ldconfig: Can't create temporary cache file /etc/ld.so.cache~: Permission denied"
-    # text += " ../include/loki/SmallObj.h:462:57: error:"
-    #
-    # regex_tester(text.split(' '))
 
 
 if __name__ == '__main__':
