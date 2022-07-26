@@ -8,14 +8,10 @@ import numpy as np
 import json
 import yaml
 import os
-import re
-import requests
+import requests as re
 import github
 import argparse
-from tensorflow.python import tf2
 from collections import Counter
-from sklearn.model_selection import train_test_split
-from keras.preprocessing.text import text_to_word_sequence
 
 
 # Function for Argparser; nargs only use if passing in a list for the argument type
@@ -27,49 +23,12 @@ def parse_args():
     return args
 
 
-# Function to split the data
-def split_data(X, y, test_size, random_state):
-    """
-    USED FOR SUPERVISED LEARNING
-    :param X: the columns of the relevant data from that are 'data' and not labels; eg: X = df['review'],
-    :param y: the columns of the relevant dataframe that are the labels for each row, e.g.: y = df['label']
-    :return:
-    """
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    return X_train, X_test, y_train, y_test
-
-
-# Function to clean dataframe
-def clean_dataframe(df):
-    df.dropna(inplace=True)
-    blanks = []
-
-    # df.itertuples() returns the index, the label, and the text as a three part tuple
-    for i, lb, rv in df.itertuples():
-        if rv.isspace():
-            blanks.append(i)
-
-    df.drop(blanks, inplace=True)
-    return df
-
-
 # Loading a JSON file
 def load_json(file):
     f = open(file=file, mode='r')
     j = json.load(f)
     f.close()
     return j
-
-
-# Class for json files
-class SetEncoder(json.JSONEncoder):
-    def default(self, o):
-        try:
-            iterable = iter(o)
-        except TypeError:
-            pass
-        else:
-            return list(iterable)
 
 
 # Reading a json with 'json.loads'
@@ -82,9 +41,8 @@ def read_json(filename):
 # Print to a JSON file
 def write_json(content, filename):
     with open(filename, "w") as fd:
-        fd.write(json.dumps(content, indent=4, cls=SetEncoder))
+        fd.write(json.dumps(content, indent=4))
     fd.close()
-
 
 # Printing to a text file
 def print_txt_file(tuple_list_object, filename):
@@ -108,7 +66,7 @@ def array_writing(array, header, filename):
     :return: nothing.
     """
     with open(file=filename, mode='ab') as f:
-        np.savetxt(fname=filename, fmt='%10.150s', X=array, newline='\n', delimiter='   ',
+        np.savetxt(fname=filename, fmt='%15.20s', X=array, newline='\n', delimiter=' ',
                    header=header, comments='##')
     f.close()
 
@@ -135,17 +93,8 @@ def read_tuple_text(file):
 
 # Function to return a json file from a url string
 def request_url_data(url_param):
-    requested_json = requests.get(url_param).json()
-    final_text = []
-    if type(requested_json) == list:
-        for dict in requested_json:
-            requested_text = {}
-            requested_text['id'] = dict['id']
-            requested_text['text'] = dict['text']
-            final_text.append(requested_text)
-    else:
-        pass
-    return requested_json, final_text
+    requested_json = re.get(url_param).json()
+    return requested_json
 
 
 # Function to get a list of the contents in the repository path
@@ -181,7 +130,7 @@ def git_raw_urls(user_name, repository, flag):
                 raw_url_list.append(item.download_url)
 
     elif flag == "docs":
-        data2 = error_repository.get_contents("docs")
+        data2 = error_repository.get_contents("meta_file")
         for item in data2:
             if "meta" in item.path:
                 # Here 'raw' is a list of dictionaries just like when accessing the url directly
@@ -190,17 +139,6 @@ def git_raw_urls(user_name, repository, flag):
                 # Append the newly found json list of dicts ot the final dict
                 raw_url_list.append(item.download_url)
 
-    elif flag == "spacy":
-        data2 = error_repository.get_contents("spacy-tokens")
-        for item in data2:
-            if "errors" in item.path:
-                # Here 'raw' is a list of dictionaries just like when accessing the url directly
-                print(f"checking path: {item.path}")
-
-                # Append the newly found json list of dicts ot the final dict
-                raw_url_list.append(item.download_url)
-
-
     return raw_url_list
 
 
@@ -208,20 +146,20 @@ def git_raw_urls(user_name, repository, flag):
 def meta_file_splitting(json_dict):
     # instantiate a dictionary for the final object
     final_dict = {}
-    # print(len(list(json_dict.keys())))
+    print(len(list(json_dict.keys())))
     for key1 in json_dict.keys():
         parsed = []
         counter_object = Counter()
         for key2 in json_dict[key1].keys():
-            if "text_parsed" in key2:
+            if "parsed" in key2:
                 parsed.extend(json_dict[key1][key2].split(" "))
         for item in parsed:
-            counter_object[item] += 1
+            if re.match('[a-zA-Z]+$', item):
+                counter_object[item] += 1
 
         final_dict[json_dict[key1]["id"]] = counter_object
 
     return final_dict
-
 
 # Function to get .py Files
 def git_repository_files(user_name, repository, folder):
@@ -254,7 +192,7 @@ def git_repository_files(user_name, repository, folder):
         if ".json" in item.path:
             print(f"checking path: {item.path}")
             # write the file out
-            j = requests.get(item.download_url).json()
+            j = re.get(item.download_url).json()
             write_json(j, os.path.basename(item.path))
 
         if '.txt' in item.path:
@@ -318,33 +256,6 @@ def token_sorting(id_token_object):
         for rank, idx in enumerate(sorted_indices):
             sorted_tuples.append(tuple((id_key, rank + 1, tokens_unsorted[idx], counts_unsorted[idx])))
     return sorted_tuples
-
-
-# function to test regrex
-def regex_tester(word_list):
-    # () is an explicit capture of what's inside the parenthesis
-    # [] is a character class that will match anything in the ranges inserted
-    for word in word_list:
-        if re.search(r'[^./][\w+][/\w+]:', word):
-            print(word)
-    return -1
-
-# function for keras
-# def keras_tokenizer(word_list):
-#     keras_tokens = Tokenizer(word_list, split=' ', lower=True)
-#     keras_tokens = list(keras_tokens)
-#     for word in word_list.split(' '):
-#         if re.search(r'[^./][\w+][/\w+]:', word) and len(word) > 6:
-#             keras_tokens.append(word)
-#     return list(set(keras_tokens))
-
-# Function for the keras_gen from sequence
-def keras_sequencer(word_list):
-    keras_tokens = text_to_word_sequence(word_list, split=' ', lower=True)
-    for word in word_list.split(' '):
-        if re.search(r'[^./][\w+][/\w+]:', word) and len(word) > 6:
-            keras_tokens.append(word)
-    return list(set(keras_tokens))
 
 
 if __name__ == '__main__':
