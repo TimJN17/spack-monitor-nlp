@@ -12,7 +12,6 @@ import re
 import requests
 import github
 import argparse
-from tensorflow.python import tf2
 from collections import Counter
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.text import text_to_word_sequence
@@ -74,6 +73,10 @@ class SetEncoder(json.JSONEncoder):
 
 # Reading a json with 'json.loads'
 def read_json(filename):
+    """
+    :param filename: name of file
+    :return: list of the dictionaries that make up the json file
+    """
     with open(filename, "r") as fd:
         content = json.loads(fd.read())
     return content

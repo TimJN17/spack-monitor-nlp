@@ -27,6 +27,7 @@ from __future__ import unicode_literals
 import operator
 import re
 import sys
+import time
 
 try:
     from html.parser import HTMLParser
@@ -918,9 +919,67 @@ def tokenize(text):
 
 
 if __name__ == '__main__':
+    st = time.time()
+    # from id 6072
+    _6072_text = "/tmp/root/spack-stage/spack-stage-hpx-1.2.1-754yz7mrryurwcyt75a4zil6e6ftck5r/spack-src/hpx/runtime/trigger_lco.hpp:422: " \
+                 "undefined reference to `bool hpx::detail::apply_impl<hpx::lcos::base_lco_with_value<unsigned int, unsigned int," \
+                 " hpx::traits::detail::component_tag>::set_value_action, unsigned int>(hpx::naming::id_type const&, hpx::naming::address&&, " \
+                 "hpx::threads::thread_priority, unsigned int&&)'"
+    _6073_text = "/tmp/root/spack-stage/spack-stage-hpx-1.2.1-754yz7mrryurwcyt75a4zil6e6ftck5r/spack-src/hpx/runtime/trigger_lco.hpp:416: " \
+                 "undefined reference to `bool hpx::detail::apply_impl<hpx::lcos::base_lco_with_value<hpx::naming::id_type, hpx::naming::gid_type, " \
+                 "hpx::traits::detail::managed_component_tag>::set_value_action, hpx::naming::gid_type>(hpx::naming::id_type const&, hpx::naming::address&&," \
+                 " hpx::threads::thread_priority, hpx::naming::gid_type&&)'"
+    _6074_text = "/tmp/root/spack-stage/spack-stage-hpx-1.2.1-754yz7mrryurwcyt75a4zil6e6ftck5r/spack-src/hpx/runtime/trigger_lco.hpp:416: " \
+                 "undefined reference to `bool hpx::detail::apply_impl<hpx::lcos::base_lco_with_value<hpx::naming::id_type, hpx::naming::gid_type, " \
+                 "hpx::traits::detail::component_tag>::set_value_action, hpx::naming::gid_type>(hpx::naming::id_type const&, hpx::naming::address&&, " \
+                 "hpx::threads::thread_priority, hpx::naming::gid_type&&)'"
+    _6454_text = "make: *** No rule to make target 'Makefile.gen', needed by 'CMake.src.cuda'.  Stop."
+
+
+    final_stokes = []
+    extra_tokens = []
+    stokes = _6072_text.split(' ')
+    ls = len(stokes)
+
+    for word in stokes:
+
+        # NOTE: To maintain encapsulation, we must designate a new variable for the replaced text
+        word_ = word.replace('<', '')
+        word_ = word_.replace('>', '')
+        word_ = word_.replace('(', '')
+        word_ = word_.replace(')', '')
+
+        if re.search(r"[>*][(*]", word) or re.search(r"[>*][)*]", word):
+            final_stokes.append(word_)
+
+        if re.search(r'[^./][\w+][/\w+]:', word_) and len(word_) > 6:
+            final_stokes.append(word_)
+
+        stokes[stokes.index(word)] = word_
+
+    # print(stokes)
+
+    final_stokes.extend(tokenize(' '.join(stokes)))
+    for word in final_stokes:
+        if not re.match(r'[\w+]+$', word):  # [a-zA-Z]+$
+            final_stokes.remove(word)
+    for word in final_stokes:
+        if len(word) == 1:
+            final_stokes.remove(word)
+    et = time.time()
+
+    # NOTE: the tokenizer expects to receive the crazy text that is taking it so long. Using the regex remover is working
+    et = time.time()
+    print("STOKENIZER")
+    print(f"Time is: {round(float(et-st)/60, 6)} minutes.")
+    print("output tokens: ", set(final_stokes))
+    print(f"Length of final_tokens is: {len(set(list(final_stokes)))}")
+    print("output: "," ".join(set(final_stokes)))
+
+
     # for line in sys.stdin:
     #     #print(' '.join(tokenizeRawTweetText(line)))
-    text = "In js $http.get().success GNU/Linux 4.2.6-200.fc22.x86_64 you call entityManager.fetchMetadata().then(success, failed) method's first data parameter in templates/your_template/index.php;"
+    # text = "In js $http.get().success GNU/Linux 4.2.6-200.fc22.x86_64 you call entityManager.fetchMetadata().then(success, failed) method's first data parameter in templates/your_template/index.php;"
     # text='I do think that the request I send to my API\'s should be more like {post=>{"kind"=>"GGG"}} and not {"kind"=>"GGG"} of I have to find a way for my api to work with the request I send now.'
     # text="I tried to add a manual refresh on the history.state change, I found something like this:"
     # text="In js you call entityManager.fetchMetadata().then(success, failed); After the promise of fetchMetadata() is resolved, breeze metadata of variable entityManager is full-filled and you can start working with your server-side objects in js with breeze!"
@@ -938,6 +997,3 @@ if __name__ == '__main__':
     # text="But now that the div's are vs. floating, they don't push #main's white background down c.net."
     # text="Example: I've confirmed that if I pass a url to some other sample url like (https://www.sample-videos.com/text/Sample-text-file-10kb.txt), my custom webview and google docs will display the results correctly, so the failure only happens when using a url/download going to our custom server."
     # text="Lines 2, 4, and 8 run in O(1) time, so {2,4,5,6,7,8} run in O(1 + 1 + A.Length + 1) = O(A.Length)time."
-    tokens = tokenize(text)
-    # print("output tokens: ",tokens)
-    # print("output: "," ".join(tokens))
