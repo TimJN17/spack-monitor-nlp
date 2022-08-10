@@ -19,14 +19,14 @@ from _utilities import read_json
 
 # Function for plotting
 def plot_tokens(incoming_json, counter, file_path_ner):
-
     sns.set_theme(style="darkgrid")
-    sns.set(rc={'figure.figsize': (15, 8.27)})
+    # sns.set(rc={'figure.figsize': (15, 8.27)})
 
     for _dict_ in incoming_json[1:]:
-        token_list = _dict_["spacy"]+_dict_["nltk"]+_dict_["bagOwords"]+_dict_["Doc2Vec"]+_dict_["keras"]+_dict_["stoken"]
+        token_list = _dict_["spacy"] + _dict_["nltk"] + _dict_["bagOwords"] + _dict_["Doc2Vec"] + _dict_["keras"] + \
+                     _dict_["stoken"]
         for token in token_list.split(" "):
-            if len(token) ==1:
+            if len(token) == 1:
                 pass
             else:
                 counter[token] += 1
@@ -34,21 +34,23 @@ def plot_tokens(incoming_json, counter, file_path_ner):
                 file_path_ner[token] += 1
 
     df = pd.DataFrame(counter.most_common(30), columns=["Token Name", "Count"])
-    # ner_df = df[:,df[:, 0] if re.search(r'[^./][\w+][/\w+]:', token)]
     ner_df = pd.DataFrame(file_path_ner.most_common(30), columns=["File Path", "Count"])
 
     df["Count / 100"] = df["Count"].div(100)
-    ner_df["Count / 100"] = df["Count"].div(100)
+    ner_df["Count / 100"] = ner_df["Count"].div(100)
 
-    # fig, axes = plt.subplots(ncols=2, squeeze=False)
-    # fig.suptitle("Both Charts")
+    fig, axes = plt.subplots(ncols=1, nrows=2, squeeze=False)
 
-    # bp = sns.barplot(x="Count / 100", y="Token Name", data=df, estimator=np.median)
-    ner_bp = sns.barplot(x="Count / 100", y="File Path", data=ner_df, estimator=np.median)
+    bp = sns.barplot(x="Count / 100", y="Token Name", data=df, estimator=np.median, ax=axes[0, 0]).set(
+        title="Total Token Counts")
+    ner_bp = sns.barplot(x="Count / 100", y="File Path", data=ner_df, estimator=np.median, ax=axes[1, 0]).set(
+        title="File Path Counts")
 
     # plt.savefig("_plot_total_token_counts.png")
-    plt.savefig("_plot_file_path_counts.png")
+    plt.savefig("_plot_double_token_plot.png")
 
+    plt.subplots_adjust(wspace=1, hspace=0.75)
+    plt.axis('auto')
     plt.show()
 
 
@@ -69,6 +71,7 @@ def main():
 
     _ = read_json(filename=file_name)
     plot_tokens(incoming_json=_, counter=counter, file_path_ner=file_path_ner)
+
 
 if __name__ == '__main__':
     main()
