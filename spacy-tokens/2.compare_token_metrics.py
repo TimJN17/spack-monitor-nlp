@@ -3,19 +3,28 @@
 Created on date:
 @authors: Timothy J. Naudet
 
-Purpose: Collect the determined tokens from the make_token.py file; return metrics of comparison between the tokeniztion
-techniques; produce a bar chart of the most common tokens
+Purpose: Collect the determined tokens from the _stoken_?_tokens.json files; return metrics of comparison between
+ the tokenization techniques; produce a bar chart of the most common tokens
 
 """
 
 from glob import glob
 import numpy as np
-from _utilities import read_json, array_writing, write_json
+from _utilities import read_json, write_json
 
 
 # Function to read the files and create the array
 def collect_tokens(incoming_json, final_array, final_json):
+    """
+    :param incoming_json: the json file produced from 1.make_github_tokens.py where this json is only
+    1/2 of the total json files
+    :param final_array: a blank o semi-filled array used to return the final data in array format
+    :param final_json: a blank or semi-filled json used to sore the final data in json format
+    :return: the final-array and final_json to be used for the next errors-?.json file or for presenting output
+    """
     for _dict_ in incoming_json:
+
+        # create a temporary dictionary to write out to each final object
         small_dict = {}
 
         N = [x for x in _dict_['nltk'].split(' ') + _dict_['spacy'].split(' ')
@@ -82,18 +91,7 @@ def main():
                     round(float(np.mean([final_array[:, 4]], dtype=np.float64)), 2),
                     round(float(np.mean([final_array[:, 5]], dtype=np.float64)), 2)]
 
-    header = f"The average Percentages of overlap with the Spacy Tokens is for each column are: \n " \
-             f"\t\t\t\t {final_metric[0]} \t\t  {final_metric[1]} \t\t  {final_metric[2]} \t\t  {final_metric[3]} \t\t  {final_metric[4]}\n" \
-             f"The columns represent the percentage of tokens are common with the spacy tokens\n" \
-             f"{'Error_ID  '.ljust(7)}   {'Spacy-NLTK'.ljust(7)}   {'Sp-BagOWs'.ljust(7)}  " \
-             f"{'Sp-Doc2V '.ljust(7)}   {'Spcy-Keras'.ljust(7)}   {'Sp-Stoknzr'.ljust(7)}   " \
-             f"{'Error_Text'.ljust(7)} "
-
     final_array = np.delete(final_array, obj=0, axis=0)
-
-    final_array = np.vstack((np.array([['AVG VALS:', str(final_metric[0]), str(final_metric[1]),
-                                        str(final_metric[2]), str(final_metric[3]), str(final_metric[4]), ' ']]),
-                             final_array))
 
     final_json.insert(0, {"id": "AVG VALS",
                           "Spacy-nltk": float(final_metric[0]),
@@ -102,7 +100,8 @@ def main():
                           "Spacy-Keras": float(final_metric[3]),
                           "Spacy-Stoken": float(final_metric[4])})
 
-    array_writing(final_array, header=header, filename="_presenting_array.txt")
+    # NOTE:The final array is only used for metric counting, it doesn't need to be written
+    # array_writing(final_array, header=header, filename="_presenting_array.txt")
     write_json(content=final_json, filename="_presenting_json.json")
 
 

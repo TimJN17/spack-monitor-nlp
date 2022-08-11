@@ -7,13 +7,8 @@ Purpose: to write the outbound json file as the same as the incoming json file, 
 each technique used.
 
 13 July 2022
-Project purpose: To effectively implement SoftNER to determine relevant NE's in the error-*.json
-files and compare/vectorize
-the error NE's to the StackOverFlow database that the SoftNER authors compiled. Within these comparisons/vectorizations
-we can
-determine, possibly through vector similarity or sentiment score (with altered labels), a probability of correlation and
-recommend these stackoverflow pages when the NE's appear in a produced error message.
-
+Project purpose: To tokenize the txt from the error json files using multiple techniques: spacy, nltk, Doc2Vec,
+ BagOWords, Keras, and Stokenizer.
 """
 
 from tqdm import tqdm
@@ -99,15 +94,10 @@ def make_tokens(word_list):
 def words_from_json(incoming_json_text, meta_dictionary):
     """
     :param incoming_json_text: the json that we read in from the github repository; essentially a list of dictionaries,
-     but in this case it has been modified to only be the id and the text key, value pairs
+     but in this case it has been modified to only be the id and the text pairs
     :param meta_dictionary: the entire dictionary from the word2Vec json
     :return: a word list comprising all text in the three mentioned keys
     """
-
-    '''
-    NOTE: id 6072 has a significant number of file path / punctuation like strings. This is the problem that
-    is causing the significant delays in the program.
-    '''
 
     print(f"\nStart time is: {time.asctime(time.localtime(time.time()))}.")
 
@@ -137,7 +127,7 @@ def words_from_json(incoming_json_text, meta_dictionary):
 
 # main function
 def main():
-    # Argparser, nargs only use if passing in a list for the argument type
+    # Argparser arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('User_name', type=str, help='Github repository user_name')
     parser.add_argument('Repository', type=str, help='Repositoqry name')
@@ -147,11 +137,14 @@ def main():
     raw_urls = git_raw_urls(user_name, repository, "error_files")
     index = 0
 
+    # Securing the BagOWords token from the meta jon file in spack-monitor-nlp
     meta_urls = git_raw_urls(user_name=user_name, repository=repository, flag="docs")
     meta_json, _ = request_url_data(meta_urls[0])
     meta_dictionary = meta_file_splitting(meta_json)
 
+    # Begin loop for each url in the raw GitHub urls
     for url in raw_urls[0:2]:
+        # NOTE: raw url 3 == raw ul 2, so only one is required.
         requested_json, requested_json_text = request_url_data(url)
         outbound_json_text = words_from_json(requested_json_text, meta_dictionary)
         for _dict_ in requested_json:

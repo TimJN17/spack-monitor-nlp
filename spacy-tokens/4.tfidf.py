@@ -7,18 +7,19 @@ Purpose: Perform tfidf vectorization on the tokens collcted by the tokenizers
 
 """
 
-import argparse
-import requests
-import re
+import scipy
+from scipy import stats
 import pandas as pd
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn import manifold
+from sklearn.cluster import KMeans
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.decomposition import NMF, PCA
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
-from _utilities import split_data, clean_dataframe, git_raw_urls, request_url_data, write_json, array_writing
 from _utilities import *
 
 
@@ -37,7 +38,7 @@ def topic_modeling(df):
     nmf_model = NMF(n_components=5, random_state=42)
     nmf_model.fit(dtm)
     df['Topic #'] = nmf_model.transform(dtm).argmax(axis=1)
-    my_topic_dictionary = {1:'health', 2:'topic2', 3:'election', 4:'poli', 5:'election'}
+    my_topic_dictionary = {1: 'health', 2: 'topic2', 3: 'election', 4: 'poli', 5: 'election'}
     df['Topic Label'] = df['Topic #'].map(my_topic_dictionary)
     return df
 
@@ -76,9 +77,43 @@ def metrics(y_test, predictions):
     print(accuracy_score(y_test, predictions))
     return -1
 
+
 # Function to plot the clusters
-def plotting():
-    pass
+def plot_top_words(model, feature_names, n_top_words, title):
+    """
+    
+    :param model: the  fit model of your choosing (LDA, NMF, ...)
+    :param feature_names: the fit_transformed vectorization model
+    :param n_top_words: integer choice
+    :param title: string for the plot title
+    :return: nothing; plots the top words
+    citation: https://scikit-learn.org/stable/auto_examples/applications/plot_topics_extraction_with_nmf_lda.h
+    tml#sphx-glr-auto-examples-applications-plot-topics-extraction-with-nmf-lda-py
+    """
+
+    topic_map = {
+        0: "Features", 1: "Package", 2: "Version", 3: "Creation", 4: "FilePath",
+        5: "Invalidation", 6: "Exceptions", 7: "Guidance", 8: "FilePath2", 9: "Corruption"
+    }
+    fig, axes = plt.subplots(2, 5, figsize=(30, 15), sharex=True)
+    axes = axes.flatten()
+    for topic_idx, topic in enumerate(model.components_):
+        top_features_ind = topic.argsort()[: -n_top_words - 1 : -1]
+        top_features = [feature_names[i] for i in top_features_ind]
+        weights = topic[top_features_ind]
+
+        ax = axes[topic_idx]
+        ax.barh(top_features, weights, height=0.7)
+        # ax.set_title(f"Topic {topic_idx + 1}", fontdict={"fontsize": 30})
+        ax.set_title(f"Topic: {topic_map[topic_idx]}", fontdict={"fontsize": 30})
+        ax.invert_yaxis()
+        ax.tick_params(axis="both", which="major", labelsize=20)
+        for i in "top right left".split():
+            ax.spines[i].set_visible(False)
+        fig.suptitle(title, fontsize=40)
+
+    plt.subplots_adjust(top=0.90, bottom=0.05, wspace=0.90, hspace=0.3)
+    plt.show()
 
 # Main function
 def main():
@@ -87,30 +122,104 @@ def main():
     Another issue is that the data is essentially without labels; we can use topic modeling to stop this?
     :return: nothing
     """
-    # Argparser, nargs only use if passing in a list for the argument type
-    parser = argparse.ArgumentParser()
-    parser.add_argument('file_name', type=str, help='Github repository user_name')
-    args = parser.parse_args()
-    file_name = args.file_name
+    incoming_json = read_json("_presenting_json.json")
+    token_list = []
+    for _dict_ in incoming_json[1:]:
+        token_list.append(_dict_["spacy"])
+        token_list.append(_dict_['nltk'])
+        token_list.append(_dict_['bagOwords'])
+        token_list.append(_dict_['Doc2Vec'])
+        token_list.append(_dict_['keras'])
+        token_list.append(_dict_['stoken'])
 
-    # if using tfidf, this should become a dataframe where the text is a column
-    token_corpus = pd.DataFrame()
+    token_array = pd.DataFrame(np.reshape(np.array(token_list), (len(token_list), 1)), columns=['Token_Text'])
 
-    '''Section for tfidf clustering'''
-    df = collect_data(read_json(file_name))
-    df = assign_labels(df=df)
-    X_train, X_test, y_train, y_test = split_data(df['text'], df['labels'], 0.33, 42)
-    predictions = tfidf_clusering(X_train, y_train, X_test)
-    pca = PCA(n_components=2).fit(predictions)
-    data_pres = pca.transform(predictions)
-    plt.scatter()
-    metrics(y_test=y_test, predictions=predictions)
+    """ TFIDF and NMF """
+    print("Begining NMF...")
+    tfidf = TfidfVectorizer(max_df=0.95, min_df=2, stop_words='english')
+    # dtm is the vectorized data
+    dtm = tfidf.fit_transform(token_array['Token_Text'])
+    nmf_model = NMF(n_components=10, random_state=42)
+    nmf_model.fit(dtm)
 
+    topic_results = nmf_model.transform(dtm)
 
-    '''Section for Topic Modeling'''
-    df = collect_data(read_json(filename=file_name))
-    df = topic_modeling(df)
-    array_writing(array=np.array(df), header="This is the header", filename="_test_array_for_topmod.txt")
+    plot_top_words(nmf_model, tfidf.get_feature_names_out(), 15, "NMF-TFIDF Top Words")
+
+    """ TFDF and KMEANS """
+    print("Beginning KMeans...")
+    clustering_model = KMeans(
+        n_clusters=10,
+        max_iter=100
+    )
+
+    labels = clustering_model.fit_predict(dtm)
+    print(labels.shape)
+
+    X = dtm.todense()
+    print(f"dtm shape is :{dtm.shape}")
+    print(f"X.todese() shape is: {X.shape}")
+
+    print("begining PCA...")
+    reduced_data = PCA(n_components=2).fit_transform(X)
+    print(f"reduced data shae is: {reduced_data.shape}")
+    fig, ax = plt.subplots()
+    labels_color_map = {
+        0: '#20b2aa', 1: '#ff7373', 2: '#ffe4e1', 3: '#005073', 4: '#4d0404',
+        5: '#ccc0ba', 6: '#4700f9', 7: '#f6f900', 8: '#00f91d', 9: '#da8c49'
+    }
+    print("Beginning PCA subplot loop...")
+    for index, instance in enumerate(reduced_data):
+        # print instance, index, labels[index]
+        pca_comp_1, pca_comp_2 = reduced_data[index]
+        color = labels_color_map[labels[index]]
+        ax.scatter(pca_comp_1, pca_comp_2, c=color)
+    plt.show()
+
+    ##
+    # Do the dimension reduction
+    # ##
+    # k = 10  # number of nearest neighbors to consider
+    # d = 2  # dimensionality
+    # pos = manifold.Isomap(10, 2, eigen_solver='auto').fit_transform(dtm.toarray())
+    #
+    # ##
+    # # Get meaningful "cluster" labels
+    # ##
+    # # Semantic labeling of cluster. Apply a label if the clusters max TF-IDF is in the 99% quantile of the whole corpus of TF-IDF scores
+    # labels = tfidf.get_feature_names()  # text labels of features
+    # clusterLabels = []
+    # t99 = scipy.stats.mstats.mquantiles(X.data, [0.99])[0]
+    # clusterLabels = []
+    # for i in range(0, dtm.shape[0]):
+    #     row = dtm.getrow(i)
+    #     if row.max() >= t99:
+    #         arrayIndex = numpy.where(row.data == row.max())[0][0]
+    #         clusterLabels.append(labels[row.indices[arrayIndex]])
+    #     else:
+    #         clusterLabels.append('')
+    # ##
+    # # Plot the dimension reduced data
+    # ##
+    # plt.xlabel('reduced dimension-1')
+    # plt.ylabel('reduced dimension-2')
+    # for i in range(1, len(pos)):
+    #     plt.scatter(pos[i][0], pos[i][1], c='cyan')
+    #     plt.annotate(clusterLabels[i], pos[i], xytext=None, xycoords='data', textcoords='data', arrowprops=None)
+    #
+    # plt.show()
+
+    # requires data with y "labels"
+    # svc_tfidf = tfidf_clusering()
+
+    # plt.scatter(x=topic_results[:, :], y=topic_results.shape[1])
+    # plt.show()
+
+    # for index, topic in enumerate(nmf_model.components_):
+    #     print(f"The top 15 words for topic # {index}")
+    #     print([tfidf.get_feature_names_out()[index] for index in topic.argsort()[-15:]])
+    #     print("\n")
+    #     print("\n")
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 Created on date:
 @authors: Timothy J. Naudet...
 
-Purpose: Plot tokens from the tokens compared
+Purpose: Plot the most common 30 tokens and the most common 30 file paths
 
 """
 
@@ -20,7 +20,6 @@ from _utilities import read_json
 # Function for plotting
 def plot_tokens(incoming_json, counter, file_path_ner):
     sns.set_theme(style="darkgrid")
-    # sns.set(rc={'figure.figsize': (15, 8.27)})
 
     for _dict_ in incoming_json[1:]:
         token_list = _dict_["spacy"] + _dict_["nltk"] + _dict_["bagOwords"] + _dict_["Doc2Vec"] + _dict_["keras"] + \
@@ -39,18 +38,17 @@ def plot_tokens(incoming_json, counter, file_path_ner):
     df["Count / 100"] = df["Count"].div(100)
     ner_df["Count / 100"] = ner_df["Count"].div(100)
 
-    fig, axes = plt.subplots(ncols=1, nrows=2, squeeze=False)
+    fig, axes = plt.subplots(ncols=1, nrows=2, squeeze=False, figsize=(10, 20))
 
-    bp = sns.barplot(x="Count / 100", y="Token Name", data=df, estimator=np.median, ax=axes[0, 0]).set(
+    sns.barplot(x="Count / 100", y="Token Name", data=df, estimator=np.median, ax=axes[0, 0]).set(
         title="Total Token Counts")
-    ner_bp = sns.barplot(x="Count / 100", y="File Path", data=ner_df, estimator=np.median, ax=axes[1, 0]).set(
+    sns.barplot(x="Count / 100", y="File Path", data=ner_df, estimator=np.median, ax=axes[1, 0]).set(
         title="File Path Counts")
 
-    # plt.savefig("_plot_total_token_counts.png")
     plt.savefig("_plot_double_token_plot.png")
 
     plt.subplots_adjust(wspace=1, hspace=0.75)
-    plt.axis('auto')
+    plt.tight_layout()
     plt.show()
 
 
@@ -64,10 +62,6 @@ def main():
 
     counter = Counter()
     file_path_ner = Counter()
-
-    # _ = []
-    # for file in glob("_stoken_?_tokens.json"):
-    #     _.extend(read_json(file))
 
     _ = read_json(filename=file_name)
     plot_tokens(incoming_json=_, counter=counter, file_path_ner=file_path_ner)
