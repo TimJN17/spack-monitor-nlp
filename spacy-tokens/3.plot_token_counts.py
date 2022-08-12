@@ -56,7 +56,7 @@ def plot_tokens(incoming_json, counter, file_path_ner):
 def main():
     # Argparser, nargs only use if passing in a list for the argument type
     parser = argparse.ArgumentParser()
-    parser.add_argument('file_name', type=str, help='Github repository user_name')
+    parser.add_argument('file_name', type=str, help='json file contianing the collected tokens')
     args = parser.parse_args()
     file_name = args.file_name
 

@@ -33,10 +33,10 @@ regex==2021.8.3
 requests==2.26.0
 river==0.11.1
 sacremoses==0.0.53
-scikit_learn==1.1.1
+scikit_learn==1.1.2
 scipy==1.7.1
 seaborn==0.11.2
-sentencepiece==0.1.96
+sentencepiece==0.1.97
 seqeval==1.2.2
 setuptools==60.10.0
 six==1.16.0
